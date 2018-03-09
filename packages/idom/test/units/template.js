@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-import { define, render, DOM, IDOM } from '../../index.js';
+import { define, render, DOM, h } from '../../index.js';
 import {
     TestComponent1,
     TestComponent2,
@@ -10,11 +10,7 @@ import {
     Test2Placeholder,
 } from '../components/template.js';
 
-// eslint-disable-next-line
-const h = IDOM.h;
-
 const WRAPPER = document.body;
-self.IDOM = IDOM;
 
 define('test1-idom-template-component', TestComponent1);
 define('test2-idom-template-component', TestComponent2);

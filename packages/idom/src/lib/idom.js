@@ -1,113 +1,114 @@
-import { isFalsy, isObject, isFunction, isArray, isString } from '@dnajs/core/src/lib/typeof.js';
-import { DOM } from '@dnajs/core/src/core.js';
+import { isFalsy, isFunction, isString, isArray } from '@dnajs/core/src/lib/typeof.js';
 import { registry } from '@dnajs/core/src/lib/registry.js';
-import {
-    skip,
-    text,
-    attr,
-    elementClose,
-    elementOpenStart,
-    elementOpenEnd,
-    patch as originalPatch,
-} from 'incremental-dom/index.js';
 
-function handleChildren(children) {
-    children.forEach((child) => {
-        if (isFunction(child)) {
-            child();
-        } else if (isArray(child)) {
-            handleChildren(child);
-        } else if (child) {
-            text(child);
+const PROPERTIES = '__properties';
+
+export function IDOMFactory(DOM) {
+    function setProperty(element, property, value) {
+        if (element[property] !== value) {
+            element[property] = value;
+            if (isFalsy(value)) {
+                unsetProperty(element, property, value);
+            } else if (value === true) {
+                DOM.setAttribute(element, property, '');
+            } else if (typeof value !== 'object') {
+                DOM.setAttribute(element, property, value);
+            }
         }
-    });
-}
-
-function interpolate(template, data) {
-    if (isFunction(template)) {
-        let res = template.call(this, data);
-        interpolate.call(this, res);
-    } else if (isArray(template)) {
-        template.forEach((chunk) => {
-            interpolate.call(this, chunk);
-        });
     }
-}
-
-
-export function h(element, props, ...children) {
-    return () => {
-        if (!isObject(props)) {
-            if (props) {
-                children.unshift(props);
-            }
-            props = {};
+    
+    function unsetProperty(element, property, nullVal = undefined) {
+        element[property] = nullVal;
+        DOM.removeAttribute(element, property);
+    }
+    
+    function patch(node, children, currentCounter = 0, initial = true) {
+        if (!isArray(children)) {
+            children = [children];
         }
-        let key = props.key;
-        delete props.key;
-
-        const Component = registry.get(props.is || element);
-        elementOpenStart(element, key);
-
-        for (let k in props) {
-            let val = props[k];
-            if (!isFalsy(val) && (!Component || isString(val) || !isNaN(val) || val === true)) {
-                attr(k, val);
-            }
-        }
-
-        const node = elementOpenEnd(element);
-        const component = Component && (DOM.getNodeComponent(node) || new Component(node));
-
-        if (component && children.length === 0) {
-            skip();
-        } else {
-            handleChildren(children);
-        }
-        elementClose(element);
-
-        if (component && isObject(component.properties)) {
-            patch.current.after(() => {
-                let componentProperties = component.properties;
-                for (let k in props) {
-                    if (componentProperties.hasOwnProperty(k)) {
-                        component[k] = props[k];
+        node = DOM.getComponentNode(node) || node;
+        children.forEach((child) => {
+            const oldChildNode = node.childNodes[currentCounter];
+            if (isArray(child)) {
+                currentCounter = patch(node, child, currentCounter, false);
+            } else if (isFunction(child)) {
+                currentCounter = patch(node, child.call(this, oldChildNode, true), currentCounter, false);
+            } else if (child) {
+                if (isString(child)) {
+                    if (oldChildNode) {
+                        if (oldChildNode.nodeType === Node.TEXT_NODE) {
+                            if (oldChildNode.textContent !== child) {
+                                oldChildNode.textContent = child;
+                            }
+                        } else {
+                            DOM.insertBefore(node, document.createTextNode(child), oldChildNode);
+                        }
+                    } else {
+                        DOM.appendChild(node, document.createTextNode(child));
+                    }
+                } else {
+                    child = DOM.getComponentNode(child) || child;
+                    if (child !== oldChildNode) {
+                        if (oldChildNode) {
+                            DOM.insertBefore(node, child, oldChildNode);
+                        } else {
+                            DOM.appendChild(node, child);
+                        }
                     }
                 }
-            });
+                currentCounter++;
+            }
+        });
+        if (initial) {
+            while (node.childNodes.length > currentCounter) {
+                DOM.removeChild(node, node.lastChild);
+            }
         }
+        return currentCounter;
+    }
+    
+    function h(tagName, properties, ...children) {
+        if (isArray(properties)) {
+            children = properties;
+            properties = {};
+        } else {
+            properties = properties || {};
+        }
+        return (oldNode, shouldSkipChildren = false) => {
+            oldNode = DOM.getNodeComponent(oldNode) || oldNode;
+            let node = (() => {
+                if (oldNode) {
+                    if (oldNode instanceof Node) {
+                        if (oldNode.tagName.toLowerCase() === tagName.toLowerCase()) {
+                            return oldNode;
+                        }
+                    } else if (oldNode.is.toLowerCase() === (properties.is || tagName).toLowerCase()) {
+                        return oldNode;
+                    }
+                }
+                return DOM.createElement(tagName, properties.is);
+            })();
+    
+            if (properties) {
+                if (node[PROPERTIES]) {
+                    for (let k in node[PROPERTIES]) {
+                        if (!(k in properties)) {
+                            unsetProperty(node, k);
+                        }
+                    }
+                }
+                for (let k in properties) {
+                    setProperty(node, k, properties[k]);
+                }
+            }
+            node[PROPERTIES] = properties;
+    
+            if (!shouldSkipChildren || !registry.get(tagName)) {
+                patch(node, children);
+            }
+            return node;
+        };
+    }
 
-        return node;
-    };
+    return { h, patch };
 }
-
-class Patch {
-    constructor() {
-        this.callbacks = [];
-    }
-
-    after(fn) {
-        this.callbacks.push(fn);
-    }
-
-    flush() {
-        this.callbacks.forEach((clb) => clb());
-    }
-}
-
-export function patch(scope, fn, data) {
-    function exec() {
-        let prev = patch.current;
-        let current = patch.current = new Patch();
-        originalPatch(scope, interpolate.bind(this, fn, data));
-        patch.current = prev;
-        current.flush();
-    }
-    if (patch.current) {
-        patch.current.after(patch.bind(this, scope, fn, data));
-    } else {
-        exec();
-    }
-}
-
-export { text };

@@ -1,7 +1,4 @@
-import { prop, BaseComponent, IDOM } from '../../index.js';
-
-// eslint-disable-next-line
-const h = IDOM.h;
+import { prop, BaseComponent, h } from '../../index.js';
 
 class TestComponent extends BaseComponent {
     get properties() {
@@ -40,8 +37,8 @@ export class TestComponent3 extends TestComponent {
 
 export class TestComponent4 extends TestComponent {
     get template() {
-        return IDOM.h('svg', [
-            IDOM.h('circle', {
+        return h('svg', [
+            h('circle', {
                 'stroke': 'black',
                 'stroke-width': '3',
                 'fill': 'red',

@@ -7,18 +7,21 @@
  * Use with Custom Elements v0 spec.
  */
 import { mix, MIXINS } from '@dnajs/core/src/core.js';
-import * as IDOM from '@dnajs/idom/src/lib/idom.js';
+import { IDOMFactory } from '@dnajs/idom/src/lib/idom.js';
 import { registry } from '@dnajs/core/src/lib/registry.js';
 import { IDOMMixin } from '@dnajs/idom/src/mixins/idom.js';
 import { shim } from './src/lib/shim.js';
 import { CustomElementMixin } from './src/mixins/custom-element.js';
 
-MIXINS.IDOMMixin = IDOMMixin;
+export const IDOM = IDOMFactory();
+export const h = IDOM.h;
+export const patch = IDOM.patch;
+
+MIXINS.IDOMMixin = IDOMMixin(patch);
 MIXINS.CustomElementMixin = CustomElementMixin;
 
 export { prop } from '@dnajs/core/src/core.js';
-export { shim, mix, registry, MIXINS, IDOM };
-export const h = IDOM.h;
+export { shim, mix, registry, MIXINS };
 export { define } from './src/lib/define.js';
 export { render } from './src/lib/render.js';
 

@@ -1,4 +1,4 @@
-import { isFunction, isString } from './typeof.js';
+import { isFunction } from './typeof.js';
 import { registry } from './registry.js';
 import { DNA_SYMBOL, COMPONENT_SYMBOL } from './symbols.js';
 
@@ -106,15 +106,19 @@ export function update(element, name, oldValue, newValue) {
  * @static
  *
  * @param {Function|String} Ctr The component constructor or tag name.
+ * @param {String} is The component name.
  * @return {HTMLElement} The component instance.
  */
-export function createElement(Ctr) {
-    if (isString(Ctr)) {
-        Ctr = registry.get(Ctr);
-    }
+export function createElement(Ctr, is) {
     if (isFunction(Ctr)) {
         return new Ctr();
     }
+    const Component = registry.get(is || Ctr);
+    const node = document.createElement(Ctr);
+    if (Component) {
+        return new Component(node);
+    }
+    return node;
 }
 /**
  * Dynamically append a node and call the `connectedCallback`.

@@ -8,17 +8,20 @@
  */
 import './src/lib/observer.js';
 import { mix, MIXINS } from '@dnajs/core/src/core.js';
-import * as IDOM from '@dnajs/idom/src/lib/idom.js';
+import { IDOMFactory } from '@dnajs/idom/src/lib/idom.js';
 import { IDOMMixin } from '@dnajs/idom/src/mixins/idom.js';
 import { CustomElementMixin } from './src/mixins/custom-element.js';
 import { shim } from './src/lib/shim.js';
 
+export const IDOM = IDOMFactory();
+export const h = IDOM.h;
+export const patch = IDOM.patch;
+
 MIXINS.CustomElementMixin = CustomElementMixin;
-MIXINS.IDOMMixin = IDOMMixin;
+MIXINS.IDOMMixin = IDOMMixin(patch);
 
 export { prop } from '@dnajs/core/src/core.js';
-export { shim, mix, MIXINS, IDOM };
-export const h = IDOM.h;
+export { shim, mix, MIXINS };
 export { registry } from './src/lib/registry.js';
 export { define } from './src/lib/define.js';
 export { render } from './src/lib/render.js';
